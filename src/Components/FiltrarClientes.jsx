@@ -2,7 +2,9 @@ import { useState, useEffect } from "react";
 import Busqueda from "./CampoBusqueda";
 import ListaClientes from "./ListaClientes";
 import Paginacion from "./Paginacion";
+import FormularioCliente from "./FormularioCliente"; // Importamos el componente nuevo
 
+// Datos iniciales
 const datosClientes = [
   { id: 1, nombre: "Laura González", telefono: "644 123 123" },
   { id: 2, nombre: "Carlos Ruiz", telefono: "655 321 321" },
@@ -18,12 +20,10 @@ export default function ContenedorClientes() {
   const [clientes, setClientes] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(false);
-
+  const [mostrarFormulario, setMostrarFormulario] = useState(false);
   const [busqueda, setBusqueda] = useState("");
   const [paginaActual, setPaginaActual] = useState(1);
-  const [resultadosPorPagina, setResultadosPorPagina] = useState(
-    opcionesPagina[0]
-  );
+  const [resultadosPorPagina, setResultadosPorPagina] = useState(opcionesPagina[0]);
   const [criterioOrden, setCriterioOrden] = useState("id");
   const [direccionOrden, setDireccionOrden] = useState("asc");
 
@@ -32,98 +32,79 @@ export default function ContenedorClientes() {
       setCargando(false);
       return;
     }
-
     setCargando(true);
-
     const timer = setTimeout(() => {
       setClientes(datosClientes);
       setCargando(false);
     }, 2000);
-
     return () => clearTimeout(timer);
   }, [error]);
+
+  const agregarCliente = (nuevoCliente) => {
+    const id = clientes.length > 0 ? Math.max(...clientes.map((c) => c.id)) + 1 : 1;
+
+    const clienteConId = { id, ...nuevoCliente };
+
+    setClientes([clienteConId, ...clientes]);
+
+    setMostrarFormulario(false);
+  };
 
   const filtrarClientes = (texto) => {
     setBusqueda(texto.toLowerCase());
     setPaginaActual(1);
   };
 
-  const cambiarCriterio = (e) => {
-    setCriterioOrden(e.target.value);
-    setPaginaActual(1);
-  };
-
-  const cambiarDireccion = (e) => {
-    setDireccionOrden(e.target.value);
-    setPaginaActual(1);
-  };
-
-  const cambiarResultados = (e) => {
-    setResultadosPorPagina(Number(e.target.value));
-    setPaginaActual(1);
-  };
+  const cambiarCriterio = (e) => { setCriterioOrden(e.target.value); setPaginaActual(1); };
+  const cambiarDireccion = (e) => { setDireccionOrden(e.target.value); setPaginaActual(1); };
+  const cambiarResultados = (e) => { setResultadosPorPagina(Number(e.target.value)); setPaginaActual(1); };
 
   const clientesFiltrados = clientes.filter((cliente) => {
-    const nombreMin = cliente.nombre.toLowerCase();
-    const telefono = cliente.telefono;
-    return nombreMin.includes(busqueda) || telefono.includes(busqueda);
+    return (
+      cliente.nombre.toLowerCase().includes(busqueda) ||
+      cliente.telefono.includes(busqueda)
+    );
   });
 
   const clientesOrdenados = [...clientesFiltrados].sort((a, b) => {
-    let valA, valB;
+    let valA = criterioOrden === "id" ? a.id : a[criterioOrden].toLowerCase();
+    let valB = criterioOrden === "id" ? b.id : b[criterioOrden].toLowerCase();
 
-    if (criterioOrden === "id") {
-      valA = a.id;
-      valB = b.id;
-    } else {
-      valA = a[criterioOrden].toLowerCase();
-      valB = b[criterioOrden].toLowerCase();
-    }
-
-    if (valA < valB) {
-      return direccionOrden === "asc" ? -1 : 1;
-    }
-    if (valA > valB) {
-      return direccionOrden === "asc" ? 1 : -1;
-    }
+    if (valA < valB) return direccionOrden === "asc" ? -1 : 1;
+    if (valA > valB) return direccionOrden === "asc" ? 1 : -1;
     return 0;
   });
 
   const indiceFinal = paginaActual * resultadosPorPagina;
   const indiceInicial = indiceFinal - resultadosPorPagina;
   const clientesPaginados = clientesOrdenados.slice(indiceInicial, indiceFinal);
+  const totalPaginas = Math.ceil(clientesFiltrados.length / resultadosPorPagina) || 1;
 
-  const totalPaginas =
-    Math.ceil(clientesFiltrados.length / resultadosPorPagina) || 1;
+  const irSiguiente = () => { if (paginaActual < totalPaginas) setPaginaActual(paginaActual + 1); };
+  const irAnterior = () => { if (paginaActual > 1) setPaginaActual(paginaActual - 1); };
 
-  const irSiguiente = () => {
-    if (paginaActual < totalPaginas) setPaginaActual(paginaActual + 1);
-  };
-
-  const irAnterior = () => {
-    if (paginaActual > 1) setPaginaActual(paginaActual - 1);
-  };
-
-  if (error) {
-    return (
-      <div style={{ color: "red", padding: "20px" }}>
-        <h2>Error al cargar los datos</h2>
-        <button onClick={() => setError(false)}>Reintentar</button>
-      </div>
-    );
-  }
-
-  if (cargando) {
-    return (
-      <div className="cargando">
-        <h1>Cargando clientes...</h1>
-      </div>
-    );
-  }
+  if (error) return <div>Error <button onClick={() => setError(false)}>Reintentar</button></div>;
+  if (cargando) return <div className="cargando"><h1>Cargando clientes...</h1></div>;
 
   return (
     <div>
       <Busqueda buscar={filtrarClientes} />
+
+      <div className="acciones-contenedor" style={{ margin: "20px 0" }}>
+        {!mostrarFormulario ? (
+          <button
+            onClick={() => setMostrarFormulario(true)}
+            style={{ backgroundColor: "#4CAF50", color: "white", padding: "10px", border: "none" }}
+          >
+            + Añadir cliente
+          </button>
+        ) : (
+          <FormularioCliente
+            agregarCliente={agregarCliente}
+            cancelar={() => setMostrarFormulario(false)}
+          />
+        )}
+      </div>
 
       <div className="controles-contenedor">
         <div className="control-grupo">
@@ -134,7 +115,6 @@ export default function ContenedorClientes() {
             <option value="telefono">Teléfono</option>
           </select>
         </div>
-
         <div className="control-grupo">
           <label>Dirección: </label>
           <select value={direccionOrden} onChange={cambiarDireccion}>
@@ -142,15 +122,10 @@ export default function ContenedorClientes() {
             <option value="desc">Descendente</option>
           </select>
         </div>
-
         <div className="control-grupo">
           <label>Resultados: </label>
           <select value={resultadosPorPagina} onChange={cambiarResultados}>
-            {opcionesPagina.map((op) => (
-              <option key={op} value={op}>
-                {op}
-              </option>
-            ))}
+            {opcionesPagina.map(op => <option key={op} value={op}>{op}</option>)}
           </select>
         </div>
       </div>
@@ -163,12 +138,6 @@ export default function ContenedorClientes() {
         irAnterior={irAnterior}
         irSiguiente={irSiguiente}
       />
-      <button
-        onClick={() => setError(true)}
-        style={{ marginTop: "20px", backgroundColor: "red", color: "white" }}
-      >
-        Simular Error
-      </button>
     </div>
   );
 }
